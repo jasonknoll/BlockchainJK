@@ -5,3 +5,6 @@ Even though this whole project followed the course, I would like to take what I 
 I need to learn how to:
 - Make a wallet
 - Host nodes remotely
+- Actually mine???
+- Combine chains rather than replace them completely
+- Automate the connection process
