@@ -3,7 +3,8 @@
 import datetime
 import hashlib
 import json
-from flask import Flask, jsonify
+import requests
+from urllib.parse import urlparse
 
 # Part 1 - Building
 
@@ -13,15 +14,19 @@ class Block:
 class Blockchain:
     def __init__(self):
         self.chain = []
+        self.transactions = [] # Containing all transactions before they're added to a block
         self.createBlock(proof=1, previousHash='0') # Geneis block
+        self.nodes = set()
         
     def createBlock(self, proof, previousHash):
         # Basic foundations of a block (for crypto)
         block = {'index': len(self.chain)+1,
                  'timestamp': str(datetime.datetime.now()),
                  'proof': proof,
-                 'previousHash': previousHash}
+                 'previousHash': previousHash,
+                 'transactions': self.transactions}
         
+        self.transactions = [] # Empty the list after it's added to block
         self.chain.append(block)
         return block
     
@@ -38,8 +43,10 @@ class Blockchain:
             # Check for leading zeroes
             if (hashOperation[:4] == '0000'):
                 checkProof = True
+                #print(str(hashOperation))
             else:
-                newProof += 1      
+                newProof += 1
+                #print(newProof)
         return newProof
 
     def hash(self, block):
@@ -66,46 +73,35 @@ class Blockchain:
             previousBlock = block
             blockIndex += 1
         return True
- 
-#---------------------------------
-       
-# Part 2 - Mining (Using flask)
-
-app = Flask(__name__)
-blockchain = Blockchain()
-
-# Mine a new block
-@app.route('/mineBlock', methods=['GET'])
-def mineBlock():
-    previousBlock = blockchain.getPreviousBlock()
-    previousProof = previousBlock['proof']
-    proof = blockchain.proofOfWork(previousProof)
-    previousHash = blockchain.hash(previousBlock)
-    block = blockchain.createBlock(proof, previousHash)
     
-    response = {'message': "You just mined a block!",
-                'index': block['index'],
-                'timestamp': block['timestamp'],
-                'proof': block['proof'],
-                'previousHash': block['previousHash']}
+    def addTransaction(self, sender, recipient, amount):
+        self.transactions.append({'sender': sender,
+                                  'recipient': recipient,
+                                  'amount': amount})
+        previousBlock = self.getPreviousBlock()
+        return previousBlock['index'] + 1 # Returns the block index for this transaction
     
-    return jsonify(response), 200 # http status code
-
-# Get the full blockchain
-@app.route('/getChain', methods=['GET'])
-def getChain():
-    response = {'chain': blockchain.chain,
-                'length': len(blockchain.chain)}
-    
-    return jsonify(response), 200
-
-@app.route('/isValid', methods=['GET'])
-def isValid():
-    if (blockchain.isChainValid(blockchain.chain)):
-        response = {'message': "The chain is valid!"}
-    else:
-        response = {'message': "The blockchain is not valid!"} # Obviously would need to be more specific
-    return jsonify(response), 200
-
-# Run the program
-app.run(host = '0.0.0.0', port = 5000) 
+    def addNode(self, address):
+        parsedUrl = urlparse(address)
+        self.nodes.add(parsedUrl.netloc)
+        
+    def replaceChain(self):
+        network = self.nodes
+        longestChain = None
+        maxLength = len(self.chain) 
+        
+        for node in network:
+            print(node)
+            response = requests.get(f"http://{node}/getChain")
+            print("pls")
+            if response.status_code == 200:
+                length = response.json()['length']
+                chain = response.json()['chain']
+                if length > maxLength and self.isChainValid(chain):
+                    maxLength = length
+                    longestChain = chain
+        if longestChain:
+            self.chain = longestChain
+            return True
+        return False
+        
