@@ -84,6 +84,9 @@ class Blockchain:
     def addNode(self, address):
         parsedUrl = urlparse(address)
         self.nodes.add(parsedUrl.netloc)
+
+    def combineChain(self): #*
+        pass 
         
     def replaceChain(self):
         network = self.nodes
@@ -97,6 +100,10 @@ class Blockchain:
             if response.status_code == 200:
                 length = response.json()['length']
                 chain = response.json()['chain']
+
+                # This is too simple. Chains may have different lengths, but the shorter one has data that the longer one needs.
+                # This example overwrites the shorter one regardless. 
+                # *I need a function that can combine chains to update them.
                 if length > maxLength and self.isChainValid(chain):
                     maxLength = length
                     longestChain = chain
